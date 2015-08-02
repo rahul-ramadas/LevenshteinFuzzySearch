@@ -14,7 +14,7 @@
 using namespace std;
 
 
-const char* c_WordsFileName = R"(C:\Users\Rahul\Downloads\words.txt)";
+const char* c_WordsFileName = "words.txt";
 
 
 size_t
@@ -223,7 +223,7 @@ CreateTrie ()
 
     ifstream fin(c_WordsFileName);
 
-    chrono::steady_clock::duration creationTime(0);
+    chrono::steady_clock::duration creationTime = chrono::steady_clock::duration::zero();
 
     string word;
     while (getline(fin, word))
@@ -251,8 +251,8 @@ TestLookup (
 {
     ifstream fin(c_WordsFileName);
 
-    chrono::steady_clock::duration avgLookupTime(0);
-    chrono::steady_clock::duration maxLookupTime(0);
+    chrono::steady_clock::duration avgLookupTime = chrono::steady_clock::duration::zero();
+    chrono::steady_clock::duration maxLookupTime = chrono::steady_clock::duration::zero();
     chrono::steady_clock::duration minLookupTime = (chrono::steady_clock::duration::max)();
     string maxWord;
     string minWord;
