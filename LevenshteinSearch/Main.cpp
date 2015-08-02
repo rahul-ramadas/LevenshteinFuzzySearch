@@ -6,6 +6,7 @@
 #include <forward_list>
 #include <memory>
 #include <algorithm>
+#include <chrono>
 #include <Windows.h>
 #include <Psapi.h>
 
@@ -132,22 +133,70 @@ wmain ()
 
     ifstream fin(c_WordsFileName);
 
+    chrono::steady_clock::duration creationTime(0);
+
     string word;
     while (getline(fin, word))
     {
+        auto start = chrono::steady_clock::now();
+
         trie.InsertWord(word);
+
+        auto end = chrono::steady_clock::now();
+
+        auto diff = end - start;
+        creationTime += diff;
     }
+
+    cout << "Time to create trie: " << chrono::duration_cast<chrono::milliseconds>(creationTime).count() << " ms" << endl;
 
     fin.clear();
     fin.seekg(0, ios::beg);
 
+    chrono::steady_clock::duration avgLookupTime(0);
+    chrono::steady_clock::duration maxLookupTime(0);
+    chrono::steady_clock::duration minLookupTime = (chrono::steady_clock::duration::max)();
+    string maxWord;
+    string minWord;
+    uint32_t numWords = 0;
+
     while (getline(fin, word))
     {
-        if (!trie.ContainsWord(word))
+        ++numWords;
+
+        auto start = chrono::steady_clock::now();
+
+        bool foundWord = trie.ContainsWord(word);
+
+        auto end = chrono::steady_clock::now();
+
+        if (!foundWord)
         {
             cout << "Could not find word \"" << word << "\"";
         }
+
+        auto diff = end - start;
+
+        if (diff > maxLookupTime)
+        {
+            maxLookupTime = diff;
+            maxWord = word;
+        }
+
+        if (diff < minLookupTime)
+        {
+            minLookupTime = diff;
+            minWord = word;
+        }
+
+        avgLookupTime += diff;
     }
+
+    avgLookupTime /= numWords;
+
+    cout << "Average lookup time: " << chrono::duration_cast<chrono::nanoseconds>(avgLookupTime).count() << " ns" << endl;
+    cout << "Max lookup time: " << chrono::duration_cast<chrono::nanoseconds>(maxLookupTime).count() << " ns (" << maxWord << ")" << endl;
+    cout << "Min lookup time: " << chrono::duration_cast<chrono::nanoseconds>(minLookupTime).count() << " ns (" << minWord << ")" << endl;
 
     size_t memUsageInBytes = GetProcessMemUsageInBytes();
     size_t memUsageInMB = memUsageInBytes / (1024 * 1024);
