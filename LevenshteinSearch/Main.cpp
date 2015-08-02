@@ -57,7 +57,7 @@ public:
     bool
     ContainsWord (
         const string& Word
-        );
+        ) const;
 
 private:
 
@@ -119,15 +119,15 @@ Trie::InsertWord (
 bool
 Trie::ContainsWord (
     const string& Word
-    )
+    ) const
 {
-    TrieNode* node = Traverse(Word, false);
+    TrieNode* node = const_cast<Trie*>(this)->Traverse(Word, false);
     return (node && node->m_IsWordEnd);
 }
 
 
-int
-wmain ()
+Trie
+CreateTrie ()
 {
     Trie trie;
 
@@ -150,8 +150,16 @@ wmain ()
 
     cout << "Time to create trie: " << chrono::duration_cast<chrono::milliseconds>(creationTime).count() << " ms" << endl;
 
-    fin.clear();
-    fin.seekg(0, ios::beg);
+    return trie;
+}
+
+
+void
+TestLookup (
+    const Trie& TheTrie
+    )
+{
+    ifstream fin(c_WordsFileName);
 
     chrono::steady_clock::duration avgLookupTime(0);
     chrono::steady_clock::duration maxLookupTime(0);
@@ -160,13 +168,14 @@ wmain ()
     string minWord;
     uint32_t numWords = 0;
 
+    string word;
     while (getline(fin, word))
     {
         ++numWords;
 
         auto start = chrono::steady_clock::now();
 
-        bool foundWord = trie.ContainsWord(word);
+        bool foundWord = TheTrie.ContainsWord(word);
 
         auto end = chrono::steady_clock::now();
 
@@ -197,11 +206,27 @@ wmain ()
     cout << "Average lookup time: " << chrono::duration_cast<chrono::nanoseconds>(avgLookupTime).count() << " ns" << endl;
     cout << "Max lookup time: " << chrono::duration_cast<chrono::nanoseconds>(maxLookupTime).count() << " ns (" << maxWord << ")" << endl;
     cout << "Min lookup time: " << chrono::duration_cast<chrono::nanoseconds>(minLookupTime).count() << " ns (" << minWord << ")" << endl;
+}
 
+
+void
+MeasureMemUsage ()
+{
     size_t memUsageInBytes = GetProcessMemUsageInBytes();
     size_t memUsageInMB = memUsageInBytes / (1024 * 1024);
 
     cout << "Memory usage: " << memUsageInMB << " MB." << endl;
+}
+
+
+int
+wmain ()
+{
+    Trie trie = CreateTrie();
+
+    MeasureMemUsage();
+
+    TestLookup(trie);
 
     return 0;
 }
