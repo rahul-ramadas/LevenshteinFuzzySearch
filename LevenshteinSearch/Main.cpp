@@ -5,6 +5,7 @@
 #include <utility>
 #include <forward_list>
 #include <memory>
+#include <vector>
 #include <algorithm>
 #include <chrono>
 #include <Windows.h>
@@ -42,6 +43,7 @@ struct TrieNode
 
     bool m_IsWordEnd;
     forward_list<pair<char, unique_ptr<TrieNode>>> m_Edges;
+    vector<uint32_t> m_Distance;
 };
 
 
@@ -59,6 +61,11 @@ public:
         const string& Word
         ) const;
 
+    string
+    FuzzyLookup (
+        const string& Word
+        );
+
 private:
 
     TrieNode*
@@ -67,8 +74,91 @@ private:
         bool AddNodes
         );
 
+    void
+    DfsFuzzy (
+        TrieNode* Node,
+        char Ch,
+        const vector<uint32_t>& PrevDistance,
+        const string& Word,
+        uint32_t& MinDist,
+        string& MinWord,
+        string& CurrentWord
+        );
+
     TrieNode m_Root;
 };
+
+
+string
+Trie::FuzzyLookup (
+    const string& Word
+    )
+{
+    TrieNode* node = &m_Root;
+
+    node->m_Distance.resize(Word.length() + 1);
+    // Node->m_Distance.shrink_to_fit();
+
+    for (size_t i = 0; i <= Word.length(); ++i)
+    {
+        node->m_Distance[i] = static_cast<uint32_t>(i);
+    }
+
+    uint32_t minDist = static_cast<uint32_t>(Word.length());
+    string minWord;
+    string currentWord;
+
+    for (auto& edge : node->m_Edges)
+    {
+        DfsFuzzy(edge.second.get(), edge.first, node->m_Distance, Word, minDist, minWord, currentWord);
+    }
+
+    return minWord;
+}
+
+
+void
+Trie::DfsFuzzy (
+    TrieNode* Node,
+    char Ch,
+    const vector<uint32_t>& PrevDistance,
+    const string& Word,
+    uint32_t& MinDist,
+    string& MinWord,
+    string& CurrentWord
+    )
+{
+    CurrentWord.push_back(Ch);
+
+    Node->m_Distance.resize(Word.length() + 1);
+    // Node->m_Distance.shrink_to_fit();
+
+    Node->m_Distance[0] = PrevDistance[0] + 1;
+
+    for (size_t i = 1; i <= Word.length(); ++i)
+    {
+        uint32_t addChar = Node->m_Distance[i - 1] + 1;
+        uint32_t delChar = PrevDistance[i] + 1;
+        uint32_t chgChar = PrevDistance[i - 1] + ((Ch == Word[i - 1]) ? 0 : 1);
+
+        Node->m_Distance[i] = (std::min)((std::min)(addChar, delChar), chgChar);
+    }
+
+    uint32_t curDist = Node->m_Distance[Word.length()];
+
+    if (Node->m_IsWordEnd && (curDist < MinDist))
+    {
+        MinDist = curDist;
+        MinWord = CurrentWord;
+    }
+
+    for (auto& edge : Node->m_Edges)
+    {
+        DfsFuzzy(edge.second.get(), edge.first, Node->m_Distance, Word, MinDist, MinWord, CurrentWord);
+    }
+
+    CurrentWord.pop_back();
+}
 
 
 TrieNode*
@@ -219,6 +309,34 @@ MeasureMemUsage ()
 }
 
 
+void
+LookupLoop (
+    Trie& TheTrie
+    )
+{
+    string word;
+
+#pragma warning(suppress: 4127)
+    while (true)
+    {
+        cout << "Word: ";
+        if (!(cin >> word))
+        {
+            break;
+        }
+
+        auto start = chrono::steady_clock::now();
+        string fuzzyWord = TheTrie.FuzzyLookup(word);
+        auto end = chrono::steady_clock::now();
+        auto diff = end - start;
+
+        cout << fuzzyWord << " (" << chrono::duration_cast<chrono::milliseconds>(diff).count() << " ms)" << endl;
+
+        MeasureMemUsage();
+    }
+}
+
+
 int
 wmain ()
 {
@@ -227,6 +345,8 @@ wmain ()
     MeasureMemUsage();
 
     TestLookup(trie);
+
+    LookupLoop(trie);
 
     return 0;
 }
